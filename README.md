@@ -1,10 +1,59 @@
-# F25_4440_S003_G12
+# Telegram APK MobSF Analysis
 
+## 1. Objective
+Analyze Telegram Beta APK using MobSF to detect:
+- Security issues
+- Dangerous permissions
+- Exposed components
+- Trackers
+- Signing certificate
 
-Team members
-Akinro Akintunde 
-Ogunseye Israel
+## 2. Setup
+- MobSF running locally at `http://127.0.0.1:8000`
+- APK analyzed: `telegram.apk`
+- Python scripts used:
+  - `pdf_to_json.py` → Extract PDF report to JSON
+  - `mini_mobsf_summary.py` → Highlight dangerous permissions and exported components
 
+## 3. Steps Taken
+1. Uploaded Telegram APK to MobSF dashboard  
+   ![Dashboard](mobsf%20dash%20board%20for%20telegram%20.png)
+2. Examined scan results: scorecard, permissions, services, trackers  
+   ![Scorecard](scorecard%20for%20telegram%20.png)
+3. Downloaded PDF report and converted it to JSON  
+   ![PDF Report](pdf.png)
+4. Used Python scripts to summarize findings in JSON and mini summary  
+   ![Mini Summary](./json.png)
 
-This project focuses on the forensic analysis and privacy assessment of popular mobile applications, specifically Telegram and TikTok, using three key forensic tools: Andriller, MVT (Mobile Verification Toolkit), and ALEAPP (Android Logs, Events, and Protobuf Parser). Each tool serves a unique purpose in uncovering hidden or sensitive data within Android devices.
-Andriller is employed to extract user data from Telegram, including messages, call logs, and cached media files. This helps reveal how user communication data is stored and the extent of recoverable information. MVT is used to detect potential spyware traces or vulnerabilities, offering insights into possible security threats linked to Telegram usage and how effectively the app protects user privacy. ALEAPP, on the other hand, parses Android logs and artifacts to analyze data from TikTok, such as user activities, timestamps, cached videos, and interactions. This provides a comprehensive look into what user information TikTok retains and exposes at the device level.
+## 4. Findings
+### 4.1 Permissions
+- Dangerous permissions detected: `ACCESS_BACKGROUND_LOCATION`, `SEND_SMS`, etc.  
+  ![Permissions](./livefeed%20server%20location%20.png)
+
+### 4.2 Exported Components
+- Activities, services, receivers, providers visible from analysis  
+  ![Services](log%20telegram%20.png)
+
+### 4.3 Signing Certificate
+- Certificate info: issuer, algorithm, valid dates  
+  ![Signature](signature%20and%20acces%20permission%20of%20telegram%20.png)
+
+### 4.4 Trackers & User Data
+- Trackers found, potential sensitive information  
+  ![Trackers](tracker%20of%20password%20and%20user%20name%20.png)
+  
+
+## 5. Difficulties Encountered
+- JSON download via API returned 404 initially  
+- Python upload script failed until correct APK path and API key were set  
+- PDF extraction required line-by-line parsing due to MobSF formatting
+
+## 6. Conclusion
+- Telegram APK contains several dangerous permissions and exported components  
+- MobSF dashboard, PDF, and JSON report provide full insight into security posture
+
+## 7. Files Included
+- `PDF_Report/telegram_report.pdf`  
+- `JSON_Report/telegram_report.json`  
+- Screenshots in `Images/`  
+- Python scripts in `Scripts/`
