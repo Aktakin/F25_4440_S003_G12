@@ -144,15 +144,33 @@ class ADBConnector:
         return output, success
         
     def check_root_status(self, device):
-        """Check if device has root access"""
-        # Try to get root access
+        """Check if device has root access - multiple methods"""
+        # Method 1: Check if adbd is running as root
+        output, success = self._run_command('root', device)
+        if success and ('running as root' in output.lower() or 'already running as root' in output.lower()):
+            return True
+        
+        # Method 2: Try su command
         output, success = self._run_command('shell su -c id', device)
         if success and 'uid=0' in output:
             return True
         
-        # Alternative check
+        # Method 3: Try su with echo
         output, success = self._run_command('shell su -c "echo root"', device)
-        return success and 'root' in output.lower()
+        if success and 'root' in output.lower() and 'not found' not in output.lower():
+            return True
+        
+        # Method 4: Check whoami as root
+        output, success = self._run_command('shell su -c whoami', device)
+        if success and 'root' in output.lower():
+            return True
+        
+        # Method 5: Direct shell check (for adb root mode)
+        output, success = self._run_command('shell id', device)
+        if success and 'uid=0' in output:
+            return True
+            
+        return False
         
     def enable_root(self, device):
         """Enable root access on device (works for emulators)"""

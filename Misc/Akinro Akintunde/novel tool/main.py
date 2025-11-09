@@ -127,6 +127,8 @@ class ForensicToolGUI:
         self.disable_root_btn = ttk.Button(root_frame, text="Disable Root", command=self.disable_root_access, state=tk.DISABLED)
         self.disable_root_btn.pack(side=tk.LEFT, padx=5)
         
+        ttk.Button(root_frame, text="🔄 Refresh Root Status", command=self.refresh_root_status).pack(side=tk.LEFT, padx=5)
+        
         # Device Info Section
         info_frame = ttk.LabelFrame(conn_frame, text="Device Information", padding=10)
         info_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -326,6 +328,20 @@ class ForensicToolGUI:
             self.disable_root_btn.config(state=tk.DISABLED)
             return
             
+        # Refresh device connection first
+        try:
+            # Re-check devices to ensure connection is still valid
+            devices = self.adb.list_devices()
+            if self.connected_device not in devices:
+                self.log("Device disconnected, reconnecting...")
+                if devices:
+                    self.connected_device = devices[0]
+                else:
+                    self.root_status_label.config(text="Root Status: Device Disconnected", fg='#ff0000')
+                    return
+        except:
+            pass
+            
         is_rooted = self.adb.check_root_status(self.connected_device)
         is_emulator = self.adb.is_emulator(self.connected_device)
         
@@ -333,6 +349,7 @@ class ForensicToolGUI:
             self.root_status_label.config(text="Root Status: ✅ ROOTED", fg='#00ff00')
             self.enable_root_btn.config(state=tk.DISABLED)
             self.disable_root_btn.config(state=tk.NORMAL)
+            self.log("✅ Root access confirmed")
         else:
             self.root_status_label.config(text="Root Status: ❌ Not Rooted", fg='#ff0000')
             if is_emulator:
@@ -342,6 +359,25 @@ class ForensicToolGUI:
                 self.enable_root_btn.config(state=tk.DISABLED)
                 self.enable_root_btn.config(text="Enable Root (Physical Device - Not Supported)")
             self.disable_root_btn.config(state=tk.DISABLED)
+            self.log("❌ Root access not available")
+            
+    def refresh_root_status(self):
+        """Manually refresh root status"""
+        self.log("Refreshing root status...")
+        self.root_status_label.config(text="Root Status: Checking...", fg='#ffaa00')
+        
+        # Force reconnection check
+        try:
+            devices = self.adb.list_devices()
+            if devices:
+                if self.connected_device not in devices:
+                    self.connected_device = devices[0]
+                    self.log(f"Reconnected to device: {self.connected_device}")
+        except Exception as e:
+            self.log(f"Error refreshing connection: {str(e)}")
+            
+        self.update_root_status()
+        self.log("Root status refreshed")
             
     def enable_root_access(self):
         """Enable root access on device"""
