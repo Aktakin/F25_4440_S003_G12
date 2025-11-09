@@ -1,0 +1,151 @@
+<<<<<<< HEAD:Misc/Israel Ogunseye/telegram_mini_summary.txt
+=== MobSF Mini Security Summary ===
+
+File Information:
+FFiillee NNaammee:: telegram_.apk
+SSiizzee:: 78.53MB
+MMDD55:: ab530014ea29f199753432b8635cbf14
+SSHHAA11:: 2866cf31b9c5755d3841660fd187030f6f9f3c17
+SSHHAA225566:: bcbf75b91bdfc71efa5f6b069da98161b37103f52e416829b019a707a51073c5
+
+
+App Information:
+AApppp NNaammee:: Telegram Beta
+PPaacckkaaggee NNaammee:: org.telegram.messenger.beta
+MMaaiinn AAccttiivviittyy:: org.telegram.ui.LaunchActivity
+TTaarrggeett SSDDKK:: 35
+MMiinn SSDDKK:: 21
+MMaaxx SSDDKK::
+AAnnddrrooiidd VVeerrssiioonn NNaammee:: 12.2.0
+AAnnddrrooiidd VVeerrssiioonn CCooddee:: 62369
+
+APP COMPONENTS
+AAccttiivviittiieess:: 18
+SSeerrvviicceess:: 29
+RReecceeiivveerrss:: 27
+PPrroovviiddeerrss:: 6
+EExxppoorrtteedd AAccttiivviittiieess:: 15
+EExxppoorrtteedd SSeerrvviicceess:: 15
+EExxppoorrtteedd RReecceeiivveerrss:: 5
+EExxppoorrtteedd PPrroovviiddeerrss:: 1
+
+CERTIFICATE INFORMATION
+Binary is signed
+v1 signature: True
+v2 signature: True
+v3 signature: False
+v4 signature: False
+X.509 Subject: L=Saint-Petersburg, O=VK, OU=VK, CN=Nikolay Kudashov
+Signature Algorithm: rsassa_pkcs1v15
+Valid From: 2013-08-29 19:13:13+00:00
+Valid To: 2038-08-23 19:13:13+00:00
+Issuer: L=Saint-Petersburg, O=VK, OU=VK, CN=Nikolay Kudashov
+Serial Number: 0x521f9d49
+Hash Algorithm: sha1
+md5: 26babc62540ef0c20bfc6bacf3d3b1f5
+sha1: 9723e5838612e9c7c08ca2c6573b6026d7a51f8f
+sha256: 49c1522548ebacd46ce322b6fd47f6092bb745d0f88082145caf35e14dcc38e1
+sha512: b47593b965b36396b06296546de386e452f84180968bca894ac90c5dfdbdedae97c3701f0454ec90f1a616e0bb5ab2c8b4bd8efdbd7b8649268fc7b1f614d648
+PublicKey Algorithm: rsa
+Bit Size: 1024
+Fingerprint: 5a75db88b7dde612c71b129469a376894dee2c4d8c3266380b658d837ee46677
+Found 1 unique certificates
+
+
+Dangerous Permissions:
+ACCESS_BACKGROUND_LOCATION
+ACCESS_COARSE_LOCATION
+ACCESS_FINE_LOCATION
+READ_CONTACTS
+WRITE_CONTACTS
+RECORD_AUDIO
+CAMERA
+
+Exported Activities (0):
+None
+
+Exported Services (0):
+None
+
+Exported Receivers (0):
+None
+
+Exported Providers (0):
+None
+
+=======
+=== MobSF Mini Security Summary ===
+
+File Information:
+FFiillee NNaammee:: telegram_.apk
+SSiizzee:: 78.53MB
+MMDD55:: ab530014ea29f199753432b8635cbf14
+SSHHAA11:: 2866cf31b9c5755d3841660fd187030f6f9f3c17
+SSHHAA225566:: bcbf75b91bdfc71efa5f6b069da98161b37103f52e416829b019a707a51073c5
+
+
+App Information:
+AApppp NNaammee:: Telegram Beta
+PPaacckkaaggee NNaammee:: org.telegram.messenger.beta
+MMaaiinn AAccttiivviittyy:: org.telegram.ui.LaunchActivity
+TTaarrggeett SSDDKK:: 35
+MMiinn SSDDKK:: 21
+MMaaxx SSDDKK::
+AAnnddrrooiidd VVeerrssiioonn NNaammee:: 12.2.0
+AAnnddrrooiidd VVeerrssiioonn CCooddee:: 62369
+
+APP COMPONENTS
+AAccttiivviittiieess:: 18
+SSeerrvviicceess:: 29
+RReecceeiivveerrss:: 27
+PPrroovviiddeerrss:: 6
+EExxppoorrtteedd AAccttiivviittiieess:: 15
+EExxppoorrtteedd SSeerrvviicceess:: 15
+EExxppoorrtteedd RReecceeiivveerrss:: 5
+EExxppoorrtteedd PPrroovviiddeerrss:: 1
+
+CERTIFICATE INFORMATION
+Binary is signed
+v1 signature: True
+v2 signature: True
+v3 signature: False
+v4 signature: False
+X.509 Subject: L=Saint-Petersburg, O=VK, OU=VK, CN=Nikolay Kudashov
+Signature Algorithm: rsassa_pkcs1v15
+Valid From: 2013-08-29 19:13:13+00:00
+Valid To: 2038-08-23 19:13:13+00:00
+Issuer: L=Saint-Petersburg, O=VK, OU=VK, CN=Nikolay Kudashov
+Serial Number: 0x521f9d49
+Hash Algorithm: sha1
+md5: 26babc62540ef0c20bfc6bacf3d3b1f5
+sha1: 9723e5838612e9c7c08ca2c6573b6026d7a51f8f
+sha256: 49c1522548ebacd46ce322b6fd47f6092bb745d0f88082145caf35e14dcc38e1
+sha512: b47593b965b36396b06296546de386e452f84180968bca894ac90c5dfdbdedae97c3701f0454ec90f1a616e0bb5ab2c8b4bd8efdbd7b8649268fc7b1f614d648
+PublicKey Algorithm: rsa
+Bit Size: 1024
+Fingerprint: 5a75db88b7dde612c71b129469a376894dee2c4d8c3266380b658d837ee46677
+Found 1 unique certificates
+
+
+Dangerous Permissions:
+ACCESS_BACKGROUND_LOCATION
+ACCESS_COARSE_LOCATION
+ACCESS_FINE_LOCATION
+READ_CONTACTS
+WRITE_CONTACTS
+RECORD_AUDIO
+CAMERA
+
+Exported Activities (0):
+None
+
+Exported Services (0):
+None
+
+Exported Receivers (0):
+None
+
+Exported Providers (0):
+None
+
+>>>>>>> 5348b93 (Move all MobSF Telegram analysis files into Israel Ogunseye folder):Israel Ogunseye/telegram_mini_summary.txt
