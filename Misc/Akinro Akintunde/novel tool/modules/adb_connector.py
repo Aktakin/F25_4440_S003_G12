@@ -8,6 +8,7 @@ import json
 import re
 import os
 import shutil
+import time
 
 
 class ADBConnector:
@@ -127,11 +128,6 @@ class ADBConnector:
                 
         return info
         
-    def is_emulator(self, device):
-        """Check if device is an emulator"""
-        output, success = self._run_command('shell getprop ro.kernel.qemu', device)
-        return success and output == '1'
-        
     def pull_file(self, device, remote_path, local_path):
         """Pull a file from device to local system"""
         output, success = self._run_command(f'pull {remote_path} {local_path}', device)
@@ -146,4 +142,56 @@ class ADBConnector:
         """Execute shell command on device"""
         output, success = self._run_command(f'shell {command}', device)
         return output, success
+        
+    def check_root_status(self, device):
+        """Check if device has root access"""
+        # Try to get root access
+        output, success = self._run_command('shell su -c id', device)
+        if success and 'uid=0' in output:
+            return True
+        
+        # Alternative check
+        output, success = self._run_command('shell su -c "echo root"', device)
+        return success and 'root' in output.lower()
+        
+    def enable_root(self, device):
+        """Enable root access on device (works for emulators)"""
+        # For emulators, use adb root
+        output, success = self._run_command('root', device)
+        
+        if success:
+            # Restart ADB server to apply root
+            self._run_command('kill-server', device)
+            time.sleep(1)
+            self._run_command('start-server', device)
+            time.sleep(2)
+            
+            # Verify root is enabled
+            return self.check_root_status(device)
+        
+        return False
+        
+    def disable_root(self, device):
+        """Disable root access (restart as non-root)"""
+        output, success = self._run_command('unroot', device)
+        
+        if success:
+            # Restart ADB server
+            self._run_command('kill-server', device)
+            time.sleep(1)
+            self._run_command('start-server', device)
+            time.sleep(2)
+            return True
+        
+        return False
+        
+    def is_emulator(self, device):
+        """Check if device is an emulator"""
+        output, success = self._run_command('shell getprop ro.kernel.qemu', device)
+        if success and output.strip() == '1':
+            return True
+        
+        # Alternative check
+        output, success = self._run_command('shell getprop ro.hardware', device)
+        return success and 'goldfish' in output.lower()
 
