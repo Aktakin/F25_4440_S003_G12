@@ -145,49 +145,77 @@ class ADBConnector:
         
     def check_root_status(self, device):
         """Check if device has root access - multiple methods"""
-        # Method 1: Check if adbd is running as root
+        # Method 1: Check if adbd is running as root (non-destructive check)
         output, success = self._run_command('root', device)
-        if success and ('running as root' in output.lower() or 'already running as root' in output.lower()):
+        if output and ('running as root' in output.lower() or 'already running as root' in output.lower()):
             return True
         
-        # Method 2: Try su command
-        output, success = self._run_command('shell su -c id', device)
-        if success and 'uid=0' in output:
-            return True
-        
-        # Method 3: Try su with echo
-        output, success = self._run_command('shell su -c "echo root"', device)
-        if success and 'root' in output.lower() and 'not found' not in output.lower():
-            return True
-        
-        # Method 4: Check whoami as root
-        output, success = self._run_command('shell su -c whoami', device)
-        if success and 'root' in output.lower():
-            return True
-        
-        # Method 5: Direct shell check (for adb root mode)
+        # Method 2: Direct shell check (for adb root mode) - fastest
         output, success = self._run_command('shell id', device)
-        if success and 'uid=0' in output:
+        if success and output and 'uid=0' in output:
+            return True
+        
+        # Method 3: Try su command
+        output, success = self._run_command('shell su -c id', device)
+        if success and output and 'uid=0' in output:
+            return True
+        
+        # Method 4: Try su with echo
+        output, success = self._run_command('shell su -c "echo root"', device)
+        if success and output and 'root' in output.lower() and 'not found' not in output.lower() and 'permission denied' not in output.lower():
+            return True
+        
+        # Method 5: Check whoami as root
+        output, success = self._run_command('shell su -c whoami', device)
+        if success and output and 'root' in output.lower():
             return True
             
         return False
         
     def enable_root(self, device):
         """Enable root access on device (works for emulators)"""
+        # Check current root status first
+        if self.check_root_status(device):
+            return True, "Already running as root"  # Already rooted
+        
         # For emulators, use adb root
         output, success = self._run_command('root', device)
         
-        if success:
+        # Check output for error messages
+        if output:
+            output_lower = output.lower()
+            if 'cannot run as root' in output_lower or 'production builds' in output_lower:
+                # Emulator doesn't support root via adb root
+                # Try alternative: check if emulator supports root at all
+                return False, "This emulator/system image doesn't support root via 'adb root'. Try starting emulator with root-enabled system image."
+            
+            if 'already running as root' in output_lower or 'running as root' in output_lower:
+                # Already in root mode, just need to reconnect
+                success = True
+            elif 'restarting adbd as root' in output_lower:
+                # Root command worked, need to reconnect
+                success = True
+        
+        if success or (output and 'restarting' in output.lower()):
             # Restart ADB server to apply root
             self._run_command('kill-server', device)
-            time.sleep(1)
+            time.sleep(2)  # Wait longer
             self._run_command('start-server', device)
-            time.sleep(2)
+            time.sleep(3)  # Wait longer for reconnection
+            
+            # Reconnect to device
+            devices = self.list_devices()
+            if device not in devices and devices:
+                device = devices[0]  # Use first available device
             
             # Verify root is enabled
-            return self.check_root_status(device)
+            if self.check_root_status(device):
+                return True, "Root enabled successfully"
+            else:
+                # Root command ran but verification failed
+                return False, f"Root command executed but verification failed. Output: {output}"
         
-        return False
+        return False, f"Failed to enable root. ADB output: {output}"
         
     def disable_root(self, device):
         """Disable root access (restart as non-root)"""

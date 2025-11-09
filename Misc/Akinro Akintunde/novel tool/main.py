@@ -13,6 +13,8 @@ import os
 import json
 import time
 import re
+import zipfile
+import shutil
 from datetime import datetime
 
 from modules.adb_connector import ADBConnector
@@ -49,6 +51,9 @@ class ForensicToolGUI:
         self.enhanced_monitoring_active = False
         self.output_dir = "output"
         self.monitor_events_queue = []
+        self.monitor_events_list = []  # Store all events for export
+        self.current_monitoring_package = None
+        self.export_output_dir = None  # User-selected export directory
         
         self.create_header()
         self.create_widgets()
@@ -128,6 +133,7 @@ class ForensicToolGUI:
         self.disable_root_btn.pack(side=tk.LEFT, padx=5)
         
         ttk.Button(root_frame, text="🔄 Refresh Root Status", command=self.refresh_root_status).pack(side=tk.LEFT, padx=5)
+        ttk.Button(root_frame, text="🔍 Diagnose Root Issue", command=self.diagnose_root).pack(side=tk.LEFT, padx=5)
         
         # Device Info Section
         info_frame = ttk.LabelFrame(conn_frame, text="Device Information", padding=10)
@@ -214,6 +220,18 @@ class ForensicToolGUI:
         
         self.monitor_stop_btn = ttk.Button(control_frame, text="Stop Monitoring", command=self.stop_monitoring, state=tk.DISABLED)
         self.monitor_stop_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Export controls
+        export_frame = ttk.Frame(monitor_frame)
+        export_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Label(export_frame, text="Export Output:").pack(side=tk.LEFT, padx=5)
+        self.export_dir_label = ttk.Label(export_frame, text="No folder selected", foreground="gray")
+        self.export_dir_label.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(export_frame, text="📁 Select Export Folder", command=self.select_export_folder).pack(side=tk.LEFT, padx=5)
+        self.export_btn = ttk.Button(export_frame, text="💾 Export & Zip Monitoring Data", command=self.export_monitoring_data, state=tk.DISABLED)
+        self.export_btn.pack(side=tk.LEFT, padx=5)
         
         # Monitoring Output with highlighting
         output_frame = ttk.LabelFrame(monitor_frame, text="Real-time Monitoring Output (Enhanced)", padding=10)
@@ -378,6 +396,104 @@ class ForensicToolGUI:
             
         self.update_root_status()
         self.log("Root status refreshed")
+        
+    def diagnose_root(self):
+        """Diagnose root issues and show detailed information"""
+        if not self.connected_device:
+            messagebox.showwarning("No Device", "No device connected")
+            return
+            
+        self.log("Running root diagnostics...")
+        
+        # Run diagnostics in thread
+        thread = threading.Thread(target=self._diagnose_root_thread)
+        thread.daemon = True
+        thread.start()
+        
+    def _diagnose_root_thread(self):
+        """Run root diagnostics"""
+        try:
+            diagnostics = []
+            diagnostics.append("=== ROOT DIAGNOSTICS ===\n")
+            diagnostics.append(f"Device: {self.connected_device}\n")
+            diagnostics.append(f"Time: {datetime.now()}\n\n")
+            
+            # Check 1: Is it an emulator?
+            is_emulator = self.adb.is_emulator(self.connected_device)
+            diagnostics.append(f"1. Is Emulator: {is_emulator}\n")
+            
+            # Check 2: Current root status
+            is_rooted = self.adb.check_root_status(self.connected_device)
+            diagnostics.append(f"2. Current Root Status: {'ROOTED ✅' if is_rooted else 'NOT ROOTED ❌'}\n\n")
+            
+            # Check 3: Try adb root command
+            diagnostics.append("3. Testing 'adb root' command:\n")
+            output, success = self.adb._run_command('root', self.connected_device)
+            diagnostics.append(f"   Command: adb root\n")
+            diagnostics.append(f"   Success: {success}\n")
+            diagnostics.append(f"   Output: {output if output else '(no output)'}\n\n")
+            
+            # Check 4: Check debuggable property
+            diagnostics.append("4. Checking if emulator supports root:\n")
+            debuggable, _ = self.adb.shell_command(self.connected_device, 'getprop ro.debuggable')
+            diagnostics.append(f"   ro.debuggable: {debuggable}\n")
+            diagnostics.append(f"   Supports root: {'YES ✅' if debuggable.strip() == '1' else 'NO ❌ (Try different system image)'}\n\n")
+            
+            # Check 5: Check kernel qemu (emulator indicator)
+            qemu, _ = self.adb.shell_command(self.connected_device, 'getprop ro.kernel.qemu')
+            diagnostics.append(f"5. Emulator check (ro.kernel.qemu): {qemu}\n\n")
+            
+            # Check 6: Try shell id
+            diagnostics.append("6. Testing shell access:\n")
+            id_output, id_success = self.adb.shell_command(self.connected_device, 'id')
+            diagnostics.append(f"   Command: adb shell id\n")
+            diagnostics.append(f"   Output: {id_output if id_output else '(no output)'}\n")
+            diagnostics.append(f"   Is root (uid=0): {'YES ✅' if 'uid=0' in id_output else 'NO ❌'}\n\n")
+            
+            # Check 7: Try su command
+            diagnostics.append("7. Testing su command:\n")
+            su_output, su_success = self.adb.shell_command(self.connected_device, 'su -c id')
+            diagnostics.append(f"   Command: adb shell su -c id\n")
+            diagnostics.append(f"   Success: {su_success}\n")
+            diagnostics.append(f"   Output: {su_output if su_output else '(no output)'}\n\n")
+            
+            # Recommendations
+            diagnostics.append("=== RECOMMENDATIONS ===\n")
+            if debuggable.strip() != '1':
+                diagnostics.append("❌ This emulator doesn't support root.\n")
+                diagnostics.append("   → Create new AVD with 'Google APIs' system image\n")
+                diagnostics.append("   → Or use: emulator -avd YOUR_AVD -selinux permissive\n\n")
+            elif not is_rooted:
+                diagnostics.append("✅ Emulator supports root, but root is not enabled.\n")
+                diagnostics.append("   → Try: adb root (in Command Prompt)\n")
+                diagnostics.append("   → Then: adb kill-server && adb start-server\n")
+                diagnostics.append("   → Then click 'Refresh Root Status' in tool\n\n")
+            else:
+                diagnostics.append("✅ Root is enabled and working!\n\n")
+            
+            # Show diagnostics
+            result = "\n".join(diagnostics)
+            self.log(result)
+            self.root.after(0, lambda: self._show_diagnostics(result))
+            
+        except Exception as e:
+            error_msg = f"Error running diagnostics: {str(e)}"
+            self.log(error_msg)
+            self.root.after(0, lambda: messagebox.showerror("Diagnostics Error", error_msg))
+            
+    def _show_diagnostics(self, diagnostics):
+        """Show diagnostics in a window"""
+        # Create new window for diagnostics
+        diag_window = tk.Toplevel(self.root)
+        diag_window.title("Root Diagnostics")
+        diag_window.geometry("700x600")
+        
+        text_widget = scrolledtext.ScrolledText(diag_window, wrap=tk.WORD, font=('Courier', 10))
+        text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        text_widget.insert(tk.END, diagnostics)
+        text_widget.config(state=tk.DISABLED)
+        
+        ttk.Button(diag_window, text="Close", command=diag_window.destroy).pack(pady=5)
             
     def enable_root_access(self):
         """Enable root access on device"""
@@ -409,21 +525,54 @@ class ForensicToolGUI:
     def _enable_root_thread(self):
         """Enable root in background thread"""
         try:
-            success = self.adb.enable_root(self.connected_device)
+            result = self.adb.enable_root(self.connected_device)
+            
+            # Handle tuple return (success, message) or boolean
+            if isinstance(result, tuple):
+                success, message = result
+            else:
+                success = result
+                message = "Root enabled" if success else "Root enable failed"
             
             if success:
                 self.root_status_label.config(text="Root Status: ✅ ROOTED", fg='#00ff00')
-                self.log("✅ Root access enabled successfully!")
-                messagebox.showinfo("Root Enabled", "Root access has been enabled successfully!\n\nYou can now access protected data and perform advanced monitoring.")
+                self.log(f"✅ Root access enabled successfully! {message}")
+                self.root.after(0, lambda: messagebox.showinfo("Root Enabled", f"Root access has been enabled successfully!\n\n{message}\n\nYou can now access protected data and perform advanced monitoring."))
                 self.update_device_info()
             else:
                 self.root_status_label.config(text="Root Status: ❌ Failed", fg='#ff0000')
-                self.log("❌ Failed to enable root access")
-                messagebox.showerror("Root Failed", "Failed to enable root access.\n\nFor emulators, make sure:\n- Emulator is running\n- ADB is properly connected\n\nFor physical devices, root must be enabled manually.")
+                self.log(f"❌ Failed to enable root access: {message}")
+                
+                # Provide detailed troubleshooting
+                troubleshooting = f"""Failed to enable root access.
+
+{message}
+
+Troubleshooting Steps:
+1. Make sure emulator is fully booted (home screen visible)
+2. Try in Command Prompt:
+   adb root
+   adb kill-server
+   adb start-server
+   adb shell id
+   (Should show uid=0 if root works)
+
+3. Some emulators need root-enabled system images:
+   - Create new AVD with system image that supports root
+   - Or start emulator with: emulator -avd YOUR_AVD -selinux permissive
+
+4. Check if emulator supports root:
+   adb shell getprop ro.debuggable
+   (Should return '1' for root-capable emulators)
+
+5. Try restarting the emulator and try again"""
+                
+                self.root.after(0, lambda: messagebox.showerror("Root Failed", troubleshooting))
                 self.update_root_status()
         except Exception as e:
             self.log(f"Error enabling root: {str(e)}")
-            messagebox.showerror("Error", f"Error enabling root: {str(e)}")
+            error_msg = f"Error enabling root: {str(e)}\n\nTry enabling root manually via Command Prompt:\nadb root\nadb kill-server\nadb start-server"
+            self.root.after(0, lambda: messagebox.showerror("Error", error_msg))
             self.update_root_status()
             
     def disable_root_access(self):
@@ -535,6 +684,8 @@ class ForensicToolGUI:
         self.monitor_stop_btn.config(state=tk.NORMAL)
         
         self.monitor_output.delete(1.0, tk.END)
+        self.monitor_events_list = []  # Clear previous events
+        self.current_monitoring_package = package  # Store current package
         if self.ultra_monitoring_active:
             self.monitor_output.insert(tk.END, f"🔥 ULTRA Monitoring started for {package} at {datetime.now()}\n")
             self.monitor_output.insert(tk.END, "=" * 80 + "\n")
@@ -690,6 +841,16 @@ class ForensicToolGUI:
         timestamp = datetime.now().strftime("%H:%M:%S")
         full_msg = f"[{timestamp}] {event_msg}\n"
         
+        # Store event for export
+        event_data = {
+            'timestamp': datetime.now().isoformat(),
+            'time': timestamp,
+            'type': event_type,
+            'message': event_msg,
+            'full_message': full_msg.strip()
+        }
+        self.monitor_events_list.append(event_data)
+        
         # Determine tag based on event type
         tag = "NETWORK"
         if "[AUTH]" in event_type or "LOGIN" in event_msg.upper():
@@ -734,6 +895,185 @@ class ForensicToolGUI:
         self.monitor_output.insert(tk.END, f"\n{'='*80}\n")
         self.monitor_output.insert(tk.END, f"⏹️ Monitoring stopped at {datetime.now()}\n")
         self.monitor_output.see(tk.END)
+        
+        # Enable export button if we have events
+        if self.monitor_events_list:
+            self.export_btn.config(state=tk.NORMAL)
+        
+    def select_export_folder(self):
+        """Select folder for exporting monitoring data"""
+        folder = filedialog.askdirectory(title="Select Folder to Save Monitoring Data")
+        if folder:
+            self.export_output_dir = folder
+            self.export_dir_label.config(text=folder, foreground="white")
+            self.log(f"Export folder selected: {folder}")
+            
+    def export_monitoring_data(self):
+        """Export monitoring data to selected folder as ZIP"""
+        if not self.export_output_dir:
+            messagebox.showwarning("No Folder Selected", "Please select an export folder first.")
+            return
+            
+        if not self.monitor_events_list:
+            messagebox.showwarning("No Data", "No monitoring data to export. Start monitoring first.")
+            return
+            
+        # Run export in thread
+        thread = threading.Thread(target=self._export_monitoring_thread)
+        thread.daemon = True
+        thread.start()
+        
+    def _export_monitoring_thread(self):
+        """Export monitoring data in background thread"""
+        try:
+            self.log("Starting export of monitoring data...")
+            
+            # Create export directory structure
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            package_name = self.current_monitoring_package or "unknown_package"
+            export_name = f"monitoring_{package_name}_{timestamp}"
+            export_path = os.path.join(self.export_output_dir, export_name)
+            os.makedirs(export_path, exist_ok=True)
+            
+            # 1. Save all events as JSON
+            events_json = {
+                'package': package_name,
+                'device': self.connected_device,
+                'start_time': self.monitor_events_list[0]['timestamp'] if self.monitor_events_list else None,
+                'end_time': self.monitor_events_list[-1]['timestamp'] if self.monitor_events_list else None,
+                'total_events': len(self.monitor_events_list),
+                'monitoring_mode': 'ULTRA' if self.ultra_monitoring_active else ('ENHANCED' if self.enhanced_monitoring_active else 'STANDARD'),
+                'events': self.monitor_events_list
+            }
+            
+            json_path = os.path.join(export_path, "monitoring_events.json")
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(events_json, f, indent=2, ensure_ascii=False)
+            
+            # 2. Save events as readable text file
+            txt_path = os.path.join(export_path, "monitoring_events.txt")
+            with open(txt_path, 'w', encoding='utf-8') as f:
+                f.write("=" * 80 + "\n")
+                f.write(f"AKT Forensic Tool - Monitoring Report\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(f"Package: {package_name}\n")
+                f.write(f"Device: {self.connected_device}\n")
+                f.write(f"Monitoring Mode: {events_json['monitoring_mode']}\n")
+                f.write(f"Start Time: {events_json['start_time']}\n")
+                f.write(f"End Time: {events_json['end_time']}\n")
+                f.write(f"Total Events: {len(self.monitor_events_list)}\n")
+                f.write("=" * 80 + "\n\n")
+                
+                # Group events by type
+                event_types = {}
+                for event in self.monitor_events_list:
+                    event_type = event['type']
+                    if event_type not in event_types:
+                        event_types[event_type] = []
+                    event_types[event_type].append(event)
+                
+                f.write("EVENT SUMMARY BY TYPE:\n")
+                f.write("-" * 80 + "\n")
+                for event_type, events in sorted(event_types.items()):
+                    f.write(f"{event_type}: {len(events)} events\n")
+                f.write("\n" + "=" * 80 + "\n\n")
+                
+                f.write("DETAILED EVENT LOG:\n")
+                f.write("-" * 80 + "\n\n")
+                for event in self.monitor_events_list:
+                    f.write(f"[{event['time']}] {event['type']} - {event['message']}\n")
+            
+            # 3. Save categorized events
+            categories = {
+                'AUTH': [],
+                'OTP': [],
+                'FILESYSTEM': [],
+                'DATABASE': [],
+                'NETWORK': [],
+                'ACTIVITY': [],
+                'MEMORY': [],
+                'CPU': [],
+                'OTHER': []
+            }
+            
+            for event in self.monitor_events_list:
+                event_type = event['type'].upper()
+                if '[AUTH]' in event_type or 'LOGIN' in event['message'].upper():
+                    categories['AUTH'].append(event)
+                elif '[OTP]' in event_type or 'OTP' in event['message'].upper():
+                    categories['OTP'].append(event)
+                elif '[FILESYSTEM]' in event_type or 'FILE' in event_type:
+                    categories['FILESYSTEM'].append(event)
+                elif '[DATABASE]' in event_type:
+                    categories['DATABASE'].append(event)
+                elif '[NETWORK]' in event_type:
+                    categories['NETWORK'].append(event)
+                elif '[ACTIVITY]' in event_type:
+                    categories['ACTIVITY'].append(event)
+                elif '[MEMORY]' in event_type:
+                    categories['MEMORY'].append(event)
+                elif '[CPU]' in event_type:
+                    categories['CPU'].append(event)
+                else:
+                    categories['OTHER'].append(event)
+            
+            # Save categorized files
+            for category, events in categories.items():
+                if events:
+                    cat_path = os.path.join(export_path, f"events_{category.lower()}.txt")
+                    with open(cat_path, 'w', encoding='utf-8') as f:
+                        f.write(f"{category} EVENTS ({len(events)} total)\n")
+                        f.write("=" * 80 + "\n\n")
+                        for event in events:
+                            f.write(f"[{event['time']}] {event['message']}\n")
+            
+            # 4. Save metadata
+            metadata = {
+                'export_time': datetime.now().isoformat(),
+                'tool_version': 'AKT Forensic Tool for 4440',
+                'package': package_name,
+                'device': self.connected_device,
+                'monitoring_mode': events_json['monitoring_mode'],
+                'total_events': len(self.monitor_events_list),
+                'event_breakdown': {cat: len(events) for cat, events in categories.items() if events}
+            }
+            
+            metadata_path = os.path.join(export_path, "metadata.json")
+            with open(metadata_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2)
+            
+            # 5. Create ZIP file
+            zip_filename = f"{export_name}.zip"
+            zip_path = os.path.join(self.export_output_dir, zip_filename)
+            
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(export_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, export_path)
+                        zipf.write(file_path, arcname)
+            
+            # 6. Clean up temporary directory (optional - keep it for now)
+            # shutil.rmtree(export_path)
+            
+            # Show success message
+            self.root.after(0, lambda: messagebox.showinfo(
+                "Export Complete",
+                f"Monitoring data exported successfully!\n\n"
+                f"ZIP File: {zip_filename}\n"
+                f"Location: {self.export_output_dir}\n\n"
+                f"Total Events: {len(self.monitor_events_list)}\n"
+                f"Files Created: {len([f for f in os.listdir(export_path) if os.path.isfile(os.path.join(export_path, f))])}"
+            ))
+            
+            self.log(f"✅ Export complete: {zip_path}")
+            self.log(f"   Total events: {len(self.monitor_events_list)}")
+            self.log(f"   Files in ZIP: {len([f for f in os.listdir(export_path) if os.path.isfile(os.path.join(export_path, f))])}")
+            
+        except Exception as e:
+            error_msg = f"Error exporting data: {str(e)}"
+            self.log(error_msg)
+            self.root.after(0, lambda: messagebox.showerror("Export Error", error_msg))
         
     def start_analysis(self):
         package = self.analyze_package_entry.get().strip()
